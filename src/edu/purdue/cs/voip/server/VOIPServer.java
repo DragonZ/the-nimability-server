@@ -10,6 +10,7 @@ public class VOIPServer {
   ServerSocket serverSocket;
   List<Client> listClient = new ArrayList<Client>();
   final static int defaultPort= 8888;
+  final static int MAX_INTERVAL = 10;
   
   public void start(int port) {
     try {
@@ -39,7 +40,23 @@ public class VOIPServer {
       }
     }
   }
-  
+	class CheckStatus extends Thread {
+
+		public void run() 
+		{
+			while(true)
+			{
+				for(Client client: listClient )
+				{
+					if (client.getInterval() < MAX_INTERVAL)
+					{
+						listClient.remove(client);
+					}
+					
+				}
+			}
+		}
+	}
   public synchronized void logout(Client c) {
     listClient.remove(c);
   }

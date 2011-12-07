@@ -12,6 +12,7 @@ public class Client extends Thread {
   private Socket socket;
   private String clientName;
   private int status;
+  long lastQueryTime;
 
   private DataInputStream incoming;
   private DataOutputStream outgoing;
@@ -23,6 +24,7 @@ public class Client extends Thread {
   private final static String FLAG_END_LIST_ALL = "END_LIST_ALL";
 
   public Client(VOIPServer server, Socket socket) {
+	  lastQueryTime  = System.currentTimeMillis();
     this.server = server;
     this.socket = socket;
     try {
@@ -73,6 +75,11 @@ public class Client extends Thread {
 
   public int getStatus() {
     return status;
+  }
+  
+  public int getInterval()
+  {
+	  return (int) ((System.currentTimeMillis()- lastQueryTime)/1000);
   }
 
 }
