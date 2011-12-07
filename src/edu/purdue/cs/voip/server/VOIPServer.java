@@ -19,7 +19,7 @@ public class VOIPServer {
       System.out.format("Port %d already in use.\n", port);
     }
     
-    if (serverSocket.isBound()) {
+    if (!serverSocket.isBound()) {
       try {
         serverSocket = new ServerSocket();
       } catch (IOException ioe) {
@@ -28,6 +28,7 @@ public class VOIPServer {
     }
     
     if (serverSocket.isBound()) {
+    	 System.out.format("Server start successfully: port:"+serverSocket.getLocalPort() +"ip: "+serverSocket.getInetAddress().toString());
     	new CheckStatus().start();
       while (true) {
         try {
@@ -76,6 +77,7 @@ public class VOIPServer {
   public static void main(String args[]) {
     VOIPServer voipServer = new VOIPServer();
     voipServer.start(defaultPort);
+    
   }
   
 }
