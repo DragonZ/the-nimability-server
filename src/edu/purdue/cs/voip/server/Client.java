@@ -1,39 +1,39 @@
 package edu.purdue.cs.voip.server;
 
-import java.io.DataInputStream;
+import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+
+import com.google.gson.Gson;
 
 public class Client extends Thread {
   private VOIPServer server;
   private Socket socket;
   private String clientName;
   private int status;
-  long lastQueryTime;
 
-  private DataInputStream incoming;
-  private DataOutputStream outgoing;
+  private BufferedReader in;
+  private DataOutputStream out;
+  private Scanner incoming;
+  private PrintStream outgoing;
 
-  private final static String OP_LIST_ALL = "LIST_ALL";
-  private final static String OP_CALL = "CALL";
-  private final static String OP_DECLINE = "DECLINE";
-  private final static String OP_ACCEPT = "ACCEPT";
-  private final static String OP_DROP = "DROP";
-  private final static String OP_EXIT = "EXIT";
-
-  private final static String FLAG_START_LIST_ALL = "START_LIST_ALL";
-  private final static String FLAG_END_LIST_ALL = "END_LIST_ALL";
+  public final static String REQUEST_LIST_ALL = "REQUEST_LIST_ALL";
+  public final static String RESPONSE_LIST_ALL = "RESPONSE_LIST_ALL";
 
   public Client(VOIPServer server, Socket socket) {
-	  lastQueryTime  = System.currentTimeMillis();
     this.server = server;
     this.socket = socket;
     try {
-      incoming = new DataInputStream(socket.getInputStream());
-      outgoing = new DataOutputStream(socket.getOutputStream());
+      in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+      out = new DataOutputStream(socket.getOutputStream());
+      incoming = new Scanner(in);
+      outgoing = new PrintStream(out);
     } catch (IOException e) {
       System.out.format("Failed to get I/O stream from the socket\n");
     }
@@ -42,32 +42,26 @@ public class Client extends Thread {
 
   @Override
   public void run() {
-    Scanner scanner = new Scanner(incoming);
     while (true) {
-      try {
-        String op = scanner.next("\n");
-        if (op.equals(OP_LIST_ALL)) {
-          List<Client> listClient = server.getClientList(this);
-          outgoing.writeChars(FLAG_START_LIST_ALL);
+      if (incoming.hasNextLine()) {
+        String jsonString = incoming.nextLine();
+        System.out.format("Received client request json:%s\n", jsonString);
 
-          for (Client c : listClient) {
-            outgoing.writeChars(c.socket.getLocalAddress().toString() + "\n");
-          }
+        Gson gson = new Gson();
 
-          outgoing.writeChars(FLAG_END_LIST_ALL);
-        } else if (op.equals(OP_CALL)) {
-          
-        } else if(op.equals(OP_DECLINE)){
-        	
-        }else if(op.equals(OP_ACCEPT)){
-        	
-        }else if(op.equals(OP_DROP)){
-        	
-        }else if(op.equals(OP_EXIT)){
-        	server.logout(this);
+        ClientRequest request = gson.fromJson(jsonString, ClientRequest.class);
+
+        if (request.requestType.equals(REQUEST_LIST_ALL)) {
+          ServerResponse response = new ServerResponse();
+          response.responseType = RESPONSE_LIST_ALL;
+          List<String> mockClients = new ArrayList<String>();
+          mockClients.add("aaaa");
+          response.listOfClients = mockClients;
+
+          System.out.format("Send server response to client: %s\n", gson.toJson(response));
+          outgoing.println(gson.toJson(response));
+          outgoing.flush();
         }
-      } catch (IOException ioe) {
-        System.out.format("Failed to send data to client %s", clientName);
       }
     }
 
@@ -88,14 +82,4 @@ public class Client extends Thread {
   public int getStatus() {
     return status;
   }
-  
-  public int getInterval()
-  {
-	  return (int) ((System.currentTimeMillis()- lastQueryTime)/1000);
-  }
-  
-  public void updateLastQueryTime(){
-	  lastQueryTime=System.currentTimeMillis();
-  }
-
 }

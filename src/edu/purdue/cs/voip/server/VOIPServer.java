@@ -9,76 +9,53 @@ import java.util.List;
 public class VOIPServer {
   ServerSocket serverSocket;
   List<Client> listClient = new ArrayList<Client>();
-  final static int defaultPort= 8888;
-  final static int MAX_INTERVAL = 10;
-  
+  final static int defaultPort = 8888;
+
   public void start(int port) {
     try {
       serverSocket = new ServerSocket(port);
+      System.out.format("Listening on port: %d\n", serverSocket.getLocalPort());
     } catch (IOException ioeport) {
-      System.out.format("Port %d already in use.\n", port);
+      System.out.format("Port %d already in use\n", port);
     }
-    
-    if (!serverSocket.isBound()) {
+    if (serverSocket == null) {
       try {
-        serverSocket = new ServerSocket();
+        serverSocket = new ServerSocket(0);
+        System.out.format("Listening on port: %d.\n", serverSocket.getLocalPort());
       } catch (IOException ioe) {
-        System.out.format("Failed to bind server socket to any available port.\n Exiting...\n");
+        System.out.format("No available ports\n Exiting...\n");
+        System.exit(-1);
       }
     }
-    
-    if (serverSocket.isBound()) {
-    	 System.out.format("Server start successfully: port:"+serverSocket.getLocalPort() +"ip: "+serverSocket.getInetAddress().toString());
-    	new CheckStatus().start();
-      while (true) {
-        try {
-          Socket slaveSocket = serverSocket.accept();
-          Client newClient = new Client(this, slaveSocket);
-          newClient.start();
-          listClient.add(newClient);
-        } catch (IOException e) {
-          System.out.format("Failed to accept client connection.\n");
-        }
+
+    while (true) {
+      try {
+        Socket slaveSocket = serverSocket.accept();
+        Client newClient = new Client(this, slaveSocket);
+        newClient.start();
+        listClient.add(newClient);
+      } catch (IOException e) {
+        System.out.format("Failed to accept client connection.\n");
       }
     }
   }
-	class CheckStatus extends Thread {
 
-		public void run() 
-		{
-			while(true)
-			{
-				for(Client client: listClient )
-				{
-					if (client.getInterval() < MAX_INTERVAL)
-					{
-						listClient.remove(client);
-					}
-					
-				}
-			}
-		}
-	}
   public synchronized void logout(Client c) {
     listClient.remove(c);
   }
-  
+
   public List<Client> getClientList(Client c) {
     List<Client> listClient = this.listClient;
     listClient.remove(c);
-    c.updateLastQueryTime();
     return listClient;
   }
-  
+
   public void call(Client caller, Client callee) {
-    
+
   }
-  
+
   public static void main(String args[]) {
     VOIPServer voipServer = new VOIPServer();
     voipServer.start(defaultPort);
-    
   }
-  
 }
-
