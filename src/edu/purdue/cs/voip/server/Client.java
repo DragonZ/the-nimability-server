@@ -19,6 +19,10 @@ public class Client extends Thread {
 
   private final static String OP_LIST_ALL = "LIST_ALL";
   private final static String OP_CALL = "CALL";
+  private final static String OP_DECLINE = "DECLINE";
+  private final static String OP_ACCEPT = "ACCEPT";
+  private final static String OP_DROP = "DROP";
+  private final static String OP_EXIT = "EXIT";
 
   private final static String FLAG_START_LIST_ALL = "START_LIST_ALL";
   private final static String FLAG_END_LIST_ALL = "END_LIST_ALL";
@@ -53,6 +57,14 @@ public class Client extends Thread {
           outgoing.writeChars(FLAG_END_LIST_ALL);
         } else if (op.equals(OP_CALL)) {
           
+        } else if(op.equals(OP_DECLINE)){
+        	
+        }else if(op.equals(OP_ACCEPT)){
+        	
+        }else if(op.equals(OP_DROP)){
+        	
+        }else if(op.equals(OP_EXIT)){
+        	server.logout(this);
         }
       } catch (IOException ioe) {
         System.out.format("Failed to send data to client %s", clientName);
@@ -80,6 +92,10 @@ public class Client extends Thread {
   public int getInterval()
   {
 	  return (int) ((System.currentTimeMillis()- lastQueryTime)/1000);
+  }
+  
+  public void updateLastQueryTime(){
+	  lastQueryTime=System.currentTimeMillis();
   }
 
 }

@@ -28,6 +28,7 @@ public class VOIPServer {
     }
     
     if (serverSocket.isBound()) {
+    	new CheckStatus().start();
       while (true) {
         try {
           Socket slaveSocket = serverSocket.accept();
@@ -64,6 +65,7 @@ public class VOIPServer {
   public List<Client> getClientList(Client c) {
     List<Client> listClient = this.listClient;
     listClient.remove(c);
+    c.updateLastQueryTime();
     return listClient;
   }
   
