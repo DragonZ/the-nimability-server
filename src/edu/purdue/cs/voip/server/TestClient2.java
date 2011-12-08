@@ -63,9 +63,9 @@ public class TestClient2 {
 					outgoing.println(gson.toJson(requestTmp));
 					outgoing.flush();
 				} else if(response.getResponseType().equals( Client.OP_RESPONSE_CALL)){
-					if(response.getCalleeStatus()==(Client.CALLEE_STATUS_BUSY)) System.out.println("CALLEE IS BUSY");
-					else if(response.getCalleeStatus()==(Client.CALLEE_STATUS_DECLINE)) System.out.println("CALLEE DECLINE");
-					else if(response.getCalleeStatus()==(Client.CALLEE_STATUS_READY)) {
+			/*		if(response.getCalleeStatus()==(Client.CALLEE_STATUS_BUSY)) System.out.println("CALLEE IS BUSY");
+					else if(response.getCalleeStatus()==(Client.CALLEE_STATUS_DECLINE)) System.out.println("CALLEE DECLINE");*/
+					 if( ((Integer)response.getCalleeStatus()).equals(Client.CALLEE_STATUS_READY)) {
 						System.out.println("CALLEE READY, connecting"); 
 						String callerIp = response.getRequestTarget();
 						ClientRequest requestTmp = new ClientRequest();
@@ -74,7 +74,8 @@ public class TestClient2 {
 						outgoing.println(gson.toJson(requestTmp));
 						outgoing.flush();
 					}
-					else if(response.getCalleeStatus()==(Client.CALLEE_STATUS_NOT_EXIST)) System.out.println("CALLEE NOT EXIST");
+					 else{System.out.println("FUCK");}
+					/*else if(response.getCalleeStatus()==(Client.CALLEE_STATUS_NOT_EXIST)) System.out.println("CALLEE NOT EXIST");*/
 				}
 			}
 
