@@ -38,7 +38,7 @@ public class TestClient2 {
 	public void start() {
 		ClientRequest request = new ClientRequest();
 		request.setRequestType(Client.OP_REQUEST_CALL);
-		request.setRequestTarget("128.10.25.222 8888");
+		request.setRequestTarget("/128.10.25.222");
 		Gson gson = new Gson();
 
 		outgoing.println(gson.toJson(request));
@@ -52,10 +52,12 @@ public class TestClient2 {
 				ServerResponse response = gson.fromJson(jsonString.toString(),
 						ServerResponse.class);
 				if (response.getResponseType().equals(Client.RESPONSE_LIST_ALL)) {
+					System.out.println("Entered LIST_ALL");
 					for (String s : response.getListOfClients()) {
 						System.out.println(s);
 					}
 				}else if(response.getResponseType().equals(Client.OP_REACH_CALLEE)){
+					System.out.println("Entered REACH_CALLEE");
 					String callerIp = response.getRequestTarget();
 					ClientRequest requestTmp = new ClientRequest();
 					requestTmp.setRequestType(Client.OP_REQUEST_DECLINE);
@@ -63,6 +65,7 @@ public class TestClient2 {
 					outgoing.println(gson.toJson(requestTmp));
 					outgoing.flush();
 				} else if(response.getResponseType().equals( Client.OP_RESPONSE_CALL)){
+					System.out.println("Entered OP_RESPONSE_CALL");
 			/*		if(response.getCalleeStatus()==(Client.CALLEE_STATUS_BUSY)) System.out.println("CALLEE IS BUSY");
 					else if(response.getCalleeStatus()==(Client.CALLEE_STATUS_DECLINE)) System.out.println("CALLEE DECLINE");*/
 					 if( ((Integer)response.getCalleeStatus()).equals(Client.CALLEE_STATUS_READY)) {
