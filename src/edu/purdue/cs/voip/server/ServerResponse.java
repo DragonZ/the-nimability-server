@@ -10,6 +10,12 @@ public class ServerResponse {
   
   @SerializedName("list_of_clients")
   public List<String> listOfClients;
+  
+  @SerializedName("callee_status")
+  public int  callee_status;
+   
+  @SerializedName("request_target")
+  public String requestTarget;
 
   public String getResponseType() {
     return responseType;
@@ -26,6 +32,17 @@ public class ServerResponse {
   public void setListOfClients(List<String> listOfClients) {
     this.listOfClients = listOfClients;
   }
-  
-  
+ 
+  public void setCalleeStatus(int calleeStatus){
+	  this.callee_status = calleeStatus;
+  }
+  public int getCalleeStatus(){
+	  return this.callee_status;
+  }
+  public void setRequestTarget(String requestTarget) {
+	    this.requestTarget = requestTarget;
+	  }
+  public String getRequestTarget(){
+	  return this.requestTarget;
+  }
 }

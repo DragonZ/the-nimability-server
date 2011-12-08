@@ -1,9 +1,15 @@
+/*
+ * 
+ */
+
 package edu.purdue.cs.voip.server;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -11,75 +17,238 @@ import java.util.List;
 import java.util.Scanner;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 
 public class Client extends Thread {
-  private VOIPServer server;
-  private Socket socket;
-  private String clientName;
-  private int status;
 
-  private BufferedReader in;
-  private DataOutputStream out;
-  private Scanner incoming;
-  private PrintStream outgoing;
+	public final static String REQUEST_LIST_ALL = "REQUEST_LIST_ALL";
+	public final static String RESPONSE_LIST_ALL = "RESPONSE_LIST_ALL";
+	public final static String OP_REQUEST_DECLINE = "REQUEST_DECLINE";
+	public final static String OP_RESPONSE_DECLINE = "RESPONSE_DECLINE";
+	public final static String OP_REQUEST_ACCEPT = "REQUEST_ACCEPT";
+	public final static String OP_RESPONSE_ACCEPT_FAILURE = "RESPONSE_ACCEPT_FAILURE";
+	public final static String OP_REQUEST_DROP = "REQUEST_DROP";
+	public final static String OP_REQUEST_DROP_SUCCESSFUL = "REQUEST_DROP_SUCCESSFUL ";
+	public final static String OP_RESPONSE_DROP = "RESPONSE_DROP";
+	public final static String OP_RESPONSE_DROP_SUCCESSFUL = "RESPONSE_DROP_SUCCESSFUL";
+	public final static String OP_REQUEST_EXIT = "REQUEST_EXIT";
+	public final static String OP_RESPONSE_EXIT = "RESPONSE_EXIT";
+	public final static String OP_REQUEST_CALL = "REQUEST_CALL";
+	public final static String OP_RESPONSE_CALL = "RESPONSE_CALL";//the response of a call request
+	public final static String OP_REACH_CALLEE = "REACH_CALLEE";// notify callee there is a caller..
+	public final static String OP_REQUEST_CONNECTED = "REQUEST_CONNECTED";// if current caller and callee is connected
 
-  public final static String REQUEST_LIST_ALL = "REQUEST_LIST_ALL";
-  public final static String RESPONSE_LIST_ALL = "RESPONSE_LIST_ALL";
+	//the possible value in tag OP_RESPONSE_CALL and the current client's status
+	public final static int CALLEE_STATUS_BUSY = 0;
+	public final static int CALLEE_STATUS_READY = 1;// call is ready/ accepted
+	private final static int CALLEE_STATUS_FREE = 2;
+	private final static int CALLER_STATUS_CALLING = 4;
+	//the possible value used only  in tag OP_RESPONSE_CALL(to caller)
+	public final static int CALLEE_STATUS_NOT_EXIST = 3; // callee not exist
+	public final static int CALLEE_STATUS_DECLINE = 5 ; // call is declined
 
-  public Client(VOIPServer server, Socket socket) {
-    this.server = server;
-    this.socket = socket;
-    try {
-      in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-      out = new DataOutputStream(socket.getOutputStream());
-      incoming = new Scanner(in);
-      outgoing = new PrintStream(out);
-    } catch (IOException e) {
-      System.out.format("Failed to get I/O stream from the socket\n");
-    }
+	
+	private VOIPServer server;
+	private Socket socket;
+	private String clientName;
+	private int status;
+	long lastQueryTime;
 
-  }
+	  private InputStream in;
+	  private OutputStream out;
+	  private BufferedReader incoming;
+	  private PrintStream outgoing;
 
-  @Override
-  public void run() {
-    while (true) {
-      if (incoming.hasNextLine()) {
-        String jsonString = incoming.nextLine();
-        System.out.format("Received client request json:%s\n", jsonString);
+	public Client(VOIPServer server, Socket socket) {
+		this.server = server;
+		this.socket = socket;
+		try {
+			in = socket.getInputStream();
+		      out = socket.getOutputStream();
+		      incoming =new BufferedReader(new InputStreamReader(in));
+		      outgoing = new PrintStream(out);
+			this.status = CALLEE_STATUS_FREE;
+		} catch (IOException e) {
+			System.out.format("Failed to get I/O stream from the socket\n");
+		}
 
-        Gson gson = new Gson();
+	}
 
-        ClientRequest request = gson.fromJson(jsonString, ClientRequest.class);
+	@Override
+	public void run() {
+		while (true) {
+			String jsonString;
+			try {
+				while ((jsonString = incoming.readLine()) != null) {
+					
+					System.out.format("Received client request json:%s\n",
+							jsonString);
 
-        if (request.requestType.equals(REQUEST_LIST_ALL)) {
-          ServerResponse response = new ServerResponse();
-          response.responseType = RESPONSE_LIST_ALL;
-          List<String> mockClients = new ArrayList<String>();
-          mockClients.add("aaaa");
-          response.listOfClients = mockClients;
+					Gson gson = new Gson();
 
-          System.out.format("Send server response to client: %s\n", gson.toJson(response));
-          outgoing.println(gson.toJson(response));
-          outgoing.flush();
-        }
-      }
-    }
+					ClientRequest request = gson.fromJson(jsonString,
+							ClientRequest.class);
 
-  }
+					if (request.requestType.equals(REQUEST_LIST_ALL)) {
+						ServerResponse response = new ServerResponse();
+						response.responseType = RESPONSE_LIST_ALL;
+						List<String> mockClients = new ArrayList<String>();
+						mockClients.add("aaaa");
+						response.listOfClients = mockClients;
+						sentResponseToClient(response);
+					} else if (request.requestType.equals(OP_REQUEST_CALL)) {
+						processCallRequest(request);
+					} else if (request.requestType.equals(OP_REQUEST_DECLINE)) {
+						processDecline(request);
+					} else if (request.requestType.equals(OP_REQUEST_ACCEPT)) {
+						processAccept(request);
+					} else if (request.requestType.equals(OP_REQUEST_DROP)) {
+						processDrop(request);
+					} else if(request.requestType.equals(OP_REQUEST_DROP_SUCCESSFUL)){
+						processDropSuccessful(request);
+					}else if(request.requestType.equals(OP_REQUEST_CONNECTED)){
+						processConnected(request);
+					}else if (request.requestType.equals(OP_REQUEST_EXIT)) {
+						server.logout(this);
+					}
 
-  public VOIPServer getServer() {
-    return server;
-  }
+				}
+			} catch (JsonSyntaxException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 
-  public Socket getSocket() {
-    return socket;
-  }
+	}
 
-  public String getClientName() {
-    return clientName;
-  }
+	private void processConnected(ClientRequest request) {
+		this.status = CALLEE_STATUS_BUSY;
+		ServerResponse response = new ServerResponse();
+		String callerIp = request.getRequestTarget();
+		Client callee = server.getClientByIp(callerIp);
+		if(callee == null){
+			this.status = CALLEE_STATUS_FREE ; 
+			return ;
+			
+		}
+		callee.setStatus(CALLEE_STATUS_BUSY);
+	}
 
-  public int getStatus() {
-    return status;
-  }
+	private void processDropSuccessful(ClientRequest request){
+		this.status = CALLEE_STATUS_FREE ;		
+	}
+	private void processDrop(ClientRequest request){
+		ServerResponse response = new ServerResponse();
+		String calleeIp = request.getRequestTarget();
+		Client callee = server.getClientByIp(calleeIp);
+		if(callee == null){
+			// send back failure
+			response.setResponseType(OP_RESPONSE_DROP_SUCCESSFUL);
+			response.setRequestTarget(calleeIp);
+			sentResponseToClient(response);
+			return;
+		}
+		this.status = CALLEE_STATUS_FREE ;
+		response.setResponseType(OP_RESPONSE_DROP);
+		response.setRequestTarget(this.getSocket().getInetAddress().toString());
+		callee.sentResponseToClient(response);
+		
+	}
+	private void processAccept(ClientRequest request){
+		//callee set to ready, send accept to caller
+		ServerResponse response = new ServerResponse();
+		response.setResponseType(OP_RESPONSE_CALL);
+		String callerIp = request.getRequestTarget();
+		Client caller = server.getClientByIp(callerIp);
+		if(caller==null){
+			// tell callee not exist error.
+			response.setResponseType(OP_RESPONSE_ACCEPT_FAILURE);
+			response.setRequestTarget(callerIp);
+			sentResponseToClient(response);
+			return;
+		}
+		this.status = CALLEE_STATUS_READY ;
+		response.setRequestTarget(this.socket.getInetAddress().toString());
+		response.setCalleeStatus(CALLEE_STATUS_READY);
+		caller.sentResponseToClient(response);
+	}
+	private void processDecline(ClientRequest request) {
+		ServerResponse response = new ServerResponse();
+		response.setResponseType(OP_RESPONSE_CALL);
+		// set caller to free. tell caller decline
+		String callerIp = request.getRequestTarget();
+		Client caller = server.getClientByIp(callerIp);
+		if(caller==null){
+			return;
+		}//
+		caller.setStatus(CALLEE_STATUS_FREE);
+		response.setCalleeStatus(CALLEE_STATUS_DECLINE);
+		response.setRequestTarget(this.getSocket().getInetAddress().toString());
+		caller.sentResponseToClient(response);
+	}
+
+	private void processCallRequest(ClientRequest request) {
+		ServerResponse response = new ServerResponse();
+		response.setResponseType(OP_RESPONSE_CALL);
+		this.status = CALLER_STATUS_CALLING;
+		// find the targetClient by target IP
+		String targetIp = request.getRequestTarget();
+		Client targetClient = server.getClientByIp(targetIp);
+		if (targetClient == null) {
+			response.setCalleeStatus(CALLEE_STATUS_NOT_EXIST);
+			sentResponseToClient(response);
+			return;
+		}else if(targetClient.getStatus() != CALLEE_STATUS_FREE){
+			response.setCalleeStatus(CALLEE_STATUS_BUSY);
+			sentResponseToClient(response);
+			return;
+		}else{//free
+			response.setResponseType(OP_REACH_CALLEE);
+			response.setRequestTarget(this.getSocket().getInetAddress().toString());
+			targetClient.sentResponseToClient(response);
+			return;
+		}
+		
+		
+	}
+
+	private void sentResponseToClient(ServerResponse response) {
+		Gson gson = new Gson();
+		System.out.format("Send server response to client: %s\n",
+				gson.toJson(response));
+		outgoing.println(gson.toJson(response));
+		outgoing.flush();
+
+	}
+
+	public VOIPServer getServer() {
+		return server;
+	}
+
+	public Socket getSocket() {
+		return socket;
+	}
+
+	public String getClientName() {
+		return clientName;
+	}
+
+	public int getStatus() {
+		return status;
+	}
+	
+	public void setStatus(int status){
+		this.status = status;
+	}
+
+	public long getLastQueryTime() {
+		return lastQueryTime;
+	}
+
+	public void updateLastQueryTime() {
+		lastQueryTime = System.currentTimeMillis();
+	}
 }

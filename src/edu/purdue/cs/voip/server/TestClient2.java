@@ -11,14 +11,14 @@ import java.util.Scanner;
 
 import com.google.gson.Gson;
 
-public class TestClient {
+public class TestClient2 {
 	Socket socket;
 	BufferedReader in;
 	private DataOutputStream out;
 	private Scanner incoming;
 	private PrintStream outgoing;
 
-	public TestClient(String host, int port) {
+	public TestClient2(String host, int port) {
 		try {
 			socket = new Socket(host, port);
 			in = new BufferedReader(new InputStreamReader(
@@ -38,8 +38,7 @@ public class TestClient {
 	public void start() {
 		ClientRequest request = new ClientRequest();
 		request.setRequestType(Client.OP_REQUEST_CALL);
-		request.setRequestTarget(socket.getInetAddress().toString());
-		System.out.println(socket.getInetAddress().toString());
+		request.setRequestTarget("128.10.25.222 8888");
 		Gson gson = new Gson();
 
 		outgoing.println(gson.toJson(request));
@@ -59,13 +58,23 @@ public class TestClient {
 				}else if(response.getResponseType().equals(Client.OP_REACH_CALLEE)){
 					String callerIp = response.getRequestTarget();
 					ClientRequest requestTmp = new ClientRequest();
-					System.out.println("call accepted");
-					requestTmp.setRequestType(Client.OP_REQUEST_ACCEPT);
+					requestTmp.setRequestType(Client.OP_REQUEST_DECLINE);
 					requestTmp.setRequestTarget(callerIp);
 					outgoing.println(gson.toJson(requestTmp));
 					outgoing.flush();
 				} else if(response.getResponseType().equals( Client.OP_RESPONSE_CALL)){
-					System.out.println(response.getCalleeStatus());
+					if(response.getCalleeStatus()==(Client.CALLEE_STATUS_BUSY)) System.out.println("CALLEE IS BUSY");
+					else if(response.getCalleeStatus()==(Client.CALLEE_STATUS_DECLINE)) System.out.println("CALLEE DECLINE");
+					else if(response.getCalleeStatus()==(Client.CALLEE_STATUS_READY)) {
+						System.out.println("CALLEE READY, connecting"); 
+						String callerIp = response.getRequestTarget();
+						ClientRequest requestTmp = new ClientRequest();
+						requestTmp.setRequestType(Client.OP_REQUEST_CONNECTED);
+						requestTmp.setRequestTarget(callerIp);
+						outgoing.println(gson.toJson(requestTmp));
+						outgoing.flush();
+					}
+					else if(response.getCalleeStatus()==(Client.CALLEE_STATUS_NOT_EXIST)) System.out.println("CALLEE NOT EXIST");
 				}
 			}
 

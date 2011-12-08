@@ -9,6 +9,7 @@ public class ClientRequest {
   @SerializedName("request_target")
   public String requestTarget;
 
+  
   public String getRequestType() {
     return requestType;
   }
