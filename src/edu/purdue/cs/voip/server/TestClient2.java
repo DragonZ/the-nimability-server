@@ -37,8 +37,9 @@ public class TestClient2 {
 
 	public void start() {
 		ClientRequest request = new ClientRequest();
-		request.setRequestType(Client.OP_REQUEST_CALL);
+		request.setRequestType(Client.OP_REQUEST_SENDEMAIL);
 		request.setRequestTarget("/128.10.25.222");
+		request.setRequestEmail("HEllo, world\n haha");
 		Gson gson = new Gson();
 
 		outgoing.println(gson.toJson(request));
