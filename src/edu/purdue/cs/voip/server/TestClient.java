@@ -36,14 +36,14 @@ public class TestClient {
 	}
 
 	public void start() {
-		ClientRequest request = new ClientRequest();
-		request.setRequestType(Client.OP_REQUEST_CALL);
-		request.setRequestTarget(socket.getInetAddress().toString());
+		//ClientRequest request = new ClientRequest();
+		//request.setRequestType(Client.OP_REQUEST_CALL);
+		//request.setRequestTarget(socket.getInetAddress().toString());
 		System.out.println(socket.getInetAddress().toString());
 		Gson gson = new Gson();
 
-		outgoing.println(gson.toJson(request));
-		outgoing.flush();
+		//outgoing.println(gson.toJson(request));
+		//outgoing.flush();
 
 		while (true) {
 			if (incoming.hasNextLine()) {
@@ -65,7 +65,11 @@ public class TestClient {
 					outgoing.println(gson.toJson(requestTmp));
 					outgoing.flush();
 				} else if(response.getResponseType().equals( Client.OP_RESPONSE_CALL)){
+					
 					System.out.println(response.getCalleeStatus());
+				}else if(response.getResponseType().equals( Client.OP_REACH_SENDEMAIL)){
+					
+					System.out.println(response.getReachEmail()+"\nFROM"+response.getRequestTarget());
 				}
 			}
 

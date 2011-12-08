@@ -34,39 +34,51 @@ public class Client extends Thread {
 	public final static String OP_REQUEST_EXIT = "REQUEST_EXIT";
 	public final static String OP_RESPONSE_EXIT = "RESPONSE_EXIT";
 	public final static String OP_REQUEST_CALL = "REQUEST_CALL";
-	public final static String OP_RESPONSE_CALL = "RESPONSE_CALL";//the response of a call request
-	public final static String OP_REACH_CALLEE = "REACH_CALLEE";// notify callee there is a caller..
-	public final static String OP_REQUEST_CONNECTED = "REQUEST_CONNECTED";// if current caller and callee is connected
-
-	//the possible value in tag OP_RESPONSE_CALL and the current client's status
+	public final static String OP_RESPONSE_CALL = "RESPONSE_CALL";// the
+																	// response
+																	// of a call
+																	// request
+	public final static String OP_REACH_CALLEE = "REACH_CALLEE";// notify callee
+																// there is a
+																// caller..
+	public final static String OP_REQUEST_CONNECTED = "REQUEST_CONNECTED";// if
+																			// current
+																			// caller
+																			// and
+																			// callee
+																			// is
+																			// connected
+	public final static String OP_REQUEST_SENDEMAIL = "REQUEST_SENDEMAIL";
+	public final static String OP_REACH_SENDEMAIL = "REACH_SENDEMAIL";
+	// the possible value in tag OP_RESPONSE_CALL and the current client's
+	// status
 	public final static int CALLEE_STATUS_BUSY = 0;
 	public final static int CALLEE_STATUS_READY = 1;// call is ready/ accepted
 	private final static int CALLEE_STATUS_FREE = 2;
 	private final static int CALLER_STATUS_CALLING = 4;
-	//the possible value used only  in tag OP_RESPONSE_CALL(to caller)
+	// the possible value used only in tag OP_RESPONSE_CALL(to caller)
 	public final static int CALLEE_STATUS_NOT_EXIST = 3; // callee not exist
-	public final static int CALLEE_STATUS_DECLINE = 5 ; // call is declined
+	public final static int CALLEE_STATUS_DECLINE = 5; // call is declined
 
-	
 	private VOIPServer server;
 	private Socket socket;
 	private String clientName;
 	private int status;
 	long lastQueryTime;
 
-	  private InputStream in;
-	  private OutputStream out;
-	  private BufferedReader incoming;
-	  private PrintStream outgoing;
+	private InputStream in;
+	private OutputStream out;
+	private BufferedReader incoming;
+	private PrintStream outgoing;
 
 	public Client(VOIPServer server, Socket socket) {
 		this.server = server;
 		this.socket = socket;
 		try {
 			in = socket.getInputStream();
-		      out = socket.getOutputStream();
-		      incoming =new BufferedReader(new InputStreamReader(in));
-		      outgoing = new PrintStream(out);
+			out = socket.getOutputStream();
+			incoming = new BufferedReader(new InputStreamReader(in));
+			outgoing = new PrintStream(out);
 			this.status = CALLEE_STATUS_FREE;
 		} catch (IOException e) {
 			System.out.format("Failed to get I/O stream from the socket\n");
@@ -74,13 +86,14 @@ public class Client extends Thread {
 
 	}
 
+	@SuppressWarnings("unused")
 	@Override
 	public void run() {
 		while (true) {
 			String jsonString;
 			try {
 				while ((jsonString = incoming.readLine()) != null) {
-					
+
 					System.out.format("Received client request json:%s\n",
 							jsonString);
 
@@ -104,11 +117,14 @@ public class Client extends Thread {
 						processAccept(request);
 					} else if (request.requestType.equals(OP_REQUEST_DROP)) {
 						processDrop(request);
-					} else if(request.requestType.equals(OP_REQUEST_DROP_SUCCESSFUL)){
+					} else if (request.requestType
+							.equals(OP_REQUEST_DROP_SUCCESSFUL)) {
 						processDropSuccessful(request);
-					}else if(request.requestType.equals(OP_REQUEST_CONNECTED)){
+					} else if (request.requestType.equals(OP_REQUEST_CONNECTED)) {
 						processConnected(request);
-					}else if (request.requestType.equals(OP_REQUEST_EXIT)) {
+					} else if (request.requestType.equals(OP_REQUEST_SENDEMAIL)) {
+						processSendEmail(request);
+					} else if (request.requestType.equals(OP_REQUEST_EXIT)) {
 						server.logout(this);
 					}
 
@@ -124,64 +140,81 @@ public class Client extends Thread {
 
 	}
 
+	private void processSendEmail(ClientRequest request) {
+		String calleeIp = request.getRequestTarget();
+		String emailContent = request.getRequestEmail();
+		Client callee = server.getClientByIp(calleeIp);
+		if (callee == null) {
+			return;
+		}
+		ServerResponse response = new ServerResponse();
+		response.setResponseType(OP_REACH_SENDEMAIL);
+		response.setRequestTarget(this.getSocket().getInetAddress().toString());
+		response.setReachEmail(emailContent);
+		callee.sentResponseToClient(response);
+	}
+
 	private void processConnected(ClientRequest request) {
 		this.status = CALLEE_STATUS_BUSY;
-		ServerResponse response = new ServerResponse();
-		String callerIp = request.getRequestTarget();
-		Client callee = server.getClientByIp(callerIp);
-		if(callee == null){
-			this.status = CALLEE_STATUS_FREE ; 
-			return ;
-			
+		
+		String calleeIp = request.getRequestTarget();
+		Client callee = server.getClientByIp(calleeIp);
+		if (callee == null) {
+			this.status = CALLEE_STATUS_FREE;
+			return;
+
 		}
 		callee.setStatus(CALLEE_STATUS_BUSY);
 	}
 
-	private void processDropSuccessful(ClientRequest request){
-		this.status = CALLEE_STATUS_FREE ;		
+	private void processDropSuccessful(ClientRequest request) {
+		this.status = CALLEE_STATUS_FREE;
 	}
-	private void processDrop(ClientRequest request){
+
+	private void processDrop(ClientRequest request) {
 		ServerResponse response = new ServerResponse();
 		String calleeIp = request.getRequestTarget();
 		Client callee = server.getClientByIp(calleeIp);
-		if(callee == null){
+		if (callee == null) {
 			// send back failure
 			response.setResponseType(OP_RESPONSE_DROP_SUCCESSFUL);
 			response.setRequestTarget(calleeIp);
 			sentResponseToClient(response);
 			return;
 		}
-		this.status = CALLEE_STATUS_FREE ;
+		this.status = CALLEE_STATUS_FREE;
 		response.setResponseType(OP_RESPONSE_DROP);
 		response.setRequestTarget(this.getSocket().getInetAddress().toString());
 		callee.sentResponseToClient(response);
-		
+
 	}
-	private void processAccept(ClientRequest request){
-		//callee set to ready, send accept to caller
+
+	private void processAccept(ClientRequest request) {
+		// callee set to ready, send accept to caller
 		ServerResponse response = new ServerResponse();
 		response.setResponseType(OP_RESPONSE_CALL);
 		String callerIp = request.getRequestTarget();
 		Client caller = server.getClientByIp(callerIp);
-		if(caller==null){
+		if (caller == null) {
 			// tell callee not exist error.
 			response.setResponseType(OP_RESPONSE_ACCEPT_FAILURE);
 			response.setRequestTarget(callerIp);
 			sentResponseToClient(response);
 			return;
 		}
-		this.status = CALLEE_STATUS_READY ;
+		this.status = CALLEE_STATUS_READY;
 		response.setRequestTarget(this.socket.getInetAddress().toString());
 		response.setCalleeStatus(CALLEE_STATUS_READY);
 		caller.sentResponseToClient(response);
 	}
+
 	private void processDecline(ClientRequest request) {
 		ServerResponse response = new ServerResponse();
 		response.setResponseType(OP_RESPONSE_CALL);
 		// set caller to free. tell caller decline
 		String callerIp = request.getRequestTarget();
 		Client caller = server.getClientByIp(callerIp);
-		if(caller==null){
+		if (caller == null) {
 			return;
 		}//
 		caller.setStatus(CALLEE_STATUS_FREE);
@@ -201,18 +234,18 @@ public class Client extends Thread {
 			response.setCalleeStatus(CALLEE_STATUS_NOT_EXIST);
 			sentResponseToClient(response);
 			return;
-		}else if(targetClient.getStatus() != CALLEE_STATUS_FREE){
+		} else if (targetClient.getStatus() != CALLEE_STATUS_FREE) {
 			response.setCalleeStatus(CALLEE_STATUS_BUSY);
 			sentResponseToClient(response);
 			return;
-		}else{//free
+		} else {// free
 			response.setResponseType(OP_REACH_CALLEE);
-			response.setRequestTarget(this.getSocket().getInetAddress().toString());
+			response.setRequestTarget(this.getSocket().getInetAddress()
+					.toString());
 			targetClient.sentResponseToClient(response);
 			return;
 		}
-		
-		
+
 	}
 
 	private void sentResponseToClient(ServerResponse response) {
@@ -239,8 +272,8 @@ public class Client extends Thread {
 	public int getStatus() {
 		return status;
 	}
-	
-	public void setStatus(int status){
+
+	public void setStatus(int status) {
 		this.status = status;
 	}
 
