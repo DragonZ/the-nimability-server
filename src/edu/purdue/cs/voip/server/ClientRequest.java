@@ -39,11 +39,11 @@ public class ClientRequest {
 		return requestMessage;
 	}
 	
-	public String getRequest_RealIp(){
+	public String getRequestRealIp(){
 		return request_RealIp;
 	}
 	
-	public void setRequest_RealIp(String ip){
+	public void setRequestRealIp(String ip){
 		request_RealIp = ip;
 	}
 }
