@@ -17,8 +17,8 @@ public class ServerResponse {
   @SerializedName("request_target")
   public String requestTarget;
 
-  @SerializedName("reach_sendEmail")
-  public String reachEmail;
+  @SerializedName("reach_sendMessage")
+  public String reachMessage;
   
   public String getResponseType() {
     return responseType;
@@ -48,11 +48,11 @@ public class ServerResponse {
   public String getRequestTarget(){
 	  return this.requestTarget;
   }
-  public void setReachEmail(String email) {
-	  reachEmail = email;
+  public void setReachMessage(String message) {
+	  reachMessage = message;
 	  }
 
-	  public String getReachEmail() {
-	    return reachEmail;
+	  public String getReachMessage() {
+	    return reachMessage;
 	  }
 }

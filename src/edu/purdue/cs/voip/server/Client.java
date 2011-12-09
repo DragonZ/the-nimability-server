@@ -20,11 +20,10 @@ import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 
 public class Client extends Thread {
-
+	//This constants should keep the same as the constants in VoipConstant
 	public final static String REQUEST_LIST_ALL = "REQUEST_LIST_ALL";
 	public final static String RESPONSE_LIST_ALL = "RESPONSE_LIST_ALL";
 	public final static String OP_REQUEST_DECLINE = "REQUEST_DECLINE";
-	public final static String OP_RESPONSE_DECLINE = "RESPONSE_DECLINE";
 	public final static String OP_REQUEST_ACCEPT = "REQUEST_ACCEPT";
 	public final static String OP_RESPONSE_ACCEPT_FAILURE = "RESPONSE_ACCEPT_FAILURE";
 	public final static String OP_REQUEST_DROP = "REQUEST_DROP";
@@ -48,8 +47,8 @@ public class Client extends Thread {
 																			// callee
 																			// is
 																			// connected
-	public final static String OP_REQUEST_SENDEMAIL = "REQUEST_SENDEMAIL";
-	public final static String OP_REACH_SENDEMAIL = "REACH_SENDEMAIL";
+	public final static String OP_REQUEST_SENDMESSAGE = "REQUEST_SENDMESSAGE";
+	public final static String OP_REACH_SENDMESSAGE = "REACH_SENDMESSAGE";
 	// the possible value in tag OP_RESPONSE_CALL and the current client's
 	// status
 	public final static int CALLEE_STATUS_BUSY = 0;
@@ -103,12 +102,8 @@ public class Client extends Thread {
 							ClientRequest.class);
 
 					if (request.requestType.equals(REQUEST_LIST_ALL)) {
-						ServerResponse response = new ServerResponse();
-						response.responseType = RESPONSE_LIST_ALL;
-						List<String> mockClients = new ArrayList<String>();
-						mockClients.add("aaaa");
-						response.listOfClients = mockClients;
-						sentResponseToClient(response);
+						processRequestList(request);
+						
 					} else if (request.requestType.equals(OP_REQUEST_CALL)) {
 						processCallRequest(request);
 					} else if (request.requestType.equals(OP_REQUEST_DECLINE)) {
@@ -122,8 +117,8 @@ public class Client extends Thread {
 						processDropSuccessful(request);
 					} else if (request.requestType.equals(OP_REQUEST_CONNECTED)) {
 						processConnected(request);
-					} else if (request.requestType.equals(OP_REQUEST_SENDEMAIL)) {
-						processSendEmail(request);
+					} else if (request.requestType.equals(OP_REQUEST_SENDMESSAGE)) {
+						processSendMessage(request);
 					} else if (request.requestType.equals(OP_REQUEST_EXIT)) {
 						server.logout(this);
 					}
@@ -140,17 +135,28 @@ public class Client extends Thread {
 
 	}
 
-	private void processSendEmail(ClientRequest request) {
+	private void processRequestList(ClientRequest request) {
+		ServerResponse response = new ServerResponse();
+		response.responseType = RESPONSE_LIST_ALL;
+		List<String> mockClients = new ArrayList<String>();
+		for(Client client : server.getClientList(this)){
+			mockClients.add(client.getSocket().getInetAddress().toString());
+		}
+		response.listOfClients = mockClients;
+		sentResponseToClient(response);
+	}
+
+	private void processSendMessage(ClientRequest request) {
 		String calleeIp = request.getRequestTarget();
-		String emailContent = request.getRequestEmail();
+		String messageContent = request.getRequestMessage();
 		Client callee = server.getClientByIp(calleeIp);
 		if (callee == null) {
 			return;
 		}
 		ServerResponse response = new ServerResponse();
-		response.setResponseType(OP_REACH_SENDEMAIL);
+		response.setResponseType(OP_REACH_SENDMESSAGE);
 		response.setRequestTarget(this.getSocket().getInetAddress().toString());
-		response.setReachEmail(emailContent);
+		response.setReachMessage(messageContent);
 		callee.sentResponseToClient(response);
 	}
 
@@ -175,14 +181,12 @@ public class Client extends Thread {
 		ServerResponse response = new ServerResponse();
 		String calleeIp = request.getRequestTarget();
 		Client callee = server.getClientByIp(calleeIp);
+		this.status = CALLEE_STATUS_FREE;
 		if (callee == null) {
 			// send back failure
-			response.setResponseType(OP_RESPONSE_DROP_SUCCESSFUL);
-			response.setRequestTarget(calleeIp);
-			sentResponseToClient(response);
 			return;
 		}
-		this.status = CALLEE_STATUS_FREE;
+		
 		response.setResponseType(OP_RESPONSE_DROP);
 		response.setRequestTarget(this.getSocket().getInetAddress().toString());
 		callee.sentResponseToClient(response);
@@ -196,7 +200,7 @@ public class Client extends Thread {
 		String callerIp = request.getRequestTarget();
 		Client caller = server.getClientByIp(callerIp);
 		if (caller == null) {
-			// tell callee not exist error.
+			// tell callee the caller not exist error.
 			response.setResponseType(OP_RESPONSE_ACCEPT_FAILURE);
 			response.setRequestTarget(callerIp);
 			sentResponseToClient(response);

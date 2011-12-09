@@ -37,7 +37,7 @@ public class TestClient {
 
 	public void start() {
 		//ClientRequest request = new ClientRequest();
-		//request.setRequestType(Client.OP_REQUEST_CALL);
+		//request.setRequestType(VOIPConstant.OP_REQUEST_CALL);
 		//request.setRequestTarget(socket.getInetAddress().toString());
 		System.out.println(socket.getInetAddress().toString());
 		Gson gson = new Gson();
@@ -52,24 +52,24 @@ public class TestClient {
 						jsonString);
 				ServerResponse response = gson.fromJson(jsonString.toString(),
 						ServerResponse.class);
-				if (response.getResponseType().equals(Client.RESPONSE_LIST_ALL)) {
+				if (response.getResponseType().equals(VOIPConstant.RESPONSE_LIST_ALL)) {
 					for (String s : response.getListOfClients()) {
 						System.out.println(s);
 					}
-				}else if(response.getResponseType().equals(Client.OP_REACH_CALLEE)){
+				}else if(response.getResponseType().equals(VOIPConstant.OP_REACH_CALLEE)){
 					String callerIp = response.getRequestTarget();
 					ClientRequest requestTmp = new ClientRequest();
 					System.out.println("call accepted");
-					requestTmp.setRequestType(Client.OP_REQUEST_ACCEPT);
+					requestTmp.setRequestType(VOIPConstant.OP_REQUEST_ACCEPT);
 					requestTmp.setRequestTarget(callerIp);
 					outgoing.println(gson.toJson(requestTmp));
 					outgoing.flush();
-				} else if(response.getResponseType().equals( Client.OP_RESPONSE_CALL)){
+				} else if(response.getResponseType().equals( VOIPConstant.OP_RESPONSE_CALL)){
 					
 					System.out.println(response.getCalleeStatus());
-				}else if(response.getResponseType().equals( Client.OP_REACH_SENDEMAIL)){
+				}else if(response.getResponseType().equals( VOIPConstant.OP_REACH_SENDMESSAGE)){
 					
-					System.out.println(response.getReachEmail()+"\nFROM"+response.getRequestTarget());
+					System.out.println(response.getReachMessage()+"\nFROM"+response.getRequestTarget());
 				}
 			}
 

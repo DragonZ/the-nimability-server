@@ -9,8 +9,8 @@ public class ClientRequest {
 	@SerializedName("request_target")
 	public String requestTarget;
 
-	@SerializedName("request_sendEmail")
-	public String requestEmail;
+	@SerializedName("request_sendMessage")
+	public String requestMessage;
 
 	public String getRequestType() {
 		return requestType;
@@ -28,11 +28,11 @@ public class ClientRequest {
 		this.requestTarget = requestTarget;
 	}
 
-	public void setRequestEmail(String email) {
-		requestEmail = email;
+	public void setRequestMessage(String message) {
+		requestMessage = message;
 	}
 
-	public String getRequestEmail() {
-		return requestEmail;
+	public String getRequestMessage() {
+		return requestMessage;
 	}
 }
