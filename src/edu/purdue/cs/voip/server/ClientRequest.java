@@ -12,6 +12,9 @@ public class ClientRequest {
 	@SerializedName("request_sendMessage")
 	public String requestMessage;
 
+	@SerializedName("request_RealIp")
+	public String request_RealIp;
+	
 	public String getRequestType() {
 		return requestType;
 	}
@@ -34,5 +37,13 @@ public class ClientRequest {
 
 	public String getRequestMessage() {
 		return requestMessage;
+	}
+	
+	public String getRequest_RealIp(){
+		return request_RealIp;
+	}
+	
+	public void setRequest_RealIp(String ip){
+		request_RealIp = ip;
 	}
 }

@@ -30,6 +30,7 @@ public class VOIPConstant {
 																			// connected
 	public final static String OP_REQUEST_SENDMESSAGE = "REQUEST_SENDMESSAGE";
 	public final static String OP_REACH_SENDMESSAGE = "REACH_SENDMESSAGE";
+	public final static String OP_REQUEST_SETREALLOCALIP = "REQUEST_SETREALLOCALIP";
 	// the possible value in tag OP_RESPONSE_CALL and the current client's
 	// status
 	public final static int CALLEE_STATUS_BUSY = 0;
