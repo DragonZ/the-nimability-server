@@ -5,22 +5,18 @@
 package edu.purdue.cs.voip.server;
 
 import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 
 public class Client extends Thread {
-	//This constants should keep the same as the constants in VoipConstant
+	// This constants should keep the same as the constants in VoipConstant
 	public final static String REQUEST_LIST_ALL = "REQUEST_LIST_ALL";
 	public final static String RESPONSE_LIST_ALL = "RESPONSE_LIST_ALL";
 	public final static String OP_REQUEST_DECLINE = "REQUEST_DECLINE";
@@ -48,6 +44,7 @@ public class Client extends Thread {
 																			// is
 																			// connected
 	public final static String OP_REQUEST_SENDMESSAGE = "REQUEST_SENDMESSAGE";
+	public final static String OP_REQUEST_SETREALLOCALIP = "REQUEST_SETREALLOCALIP";
 	public final static String OP_REACH_SENDMESSAGE = "REACH_SENDMESSAGE";
 	// the possible value in tag OP_RESPONSE_CALL and the current client's
 	// status
@@ -63,12 +60,13 @@ public class Client extends Thread {
 	private Socket socket;
 	private String clientName;
 	private int status;
-	long lastQueryTime;
 
 	private InputStream in;
 	private OutputStream out;
 	private BufferedReader incoming;
 	private PrintStream outgoing;
+
+	private String realLocalIP;
 
 	public Client(VOIPServer server, Socket socket) {
 		this.server = server;
@@ -85,25 +83,18 @@ public class Client extends Thread {
 
 	}
 
-	@SuppressWarnings("unused")
 	@Override
 	public void run() {
 		while (true) {
 			String jsonString;
 			try {
 				while ((jsonString = incoming.readLine()) != null) {
-
-					System.out.format("Received client request json:%s\n",
-							jsonString);
-
+					System.out.format("Request JSON: %s\n", jsonString);
 					Gson gson = new Gson();
-
 					ClientRequest request = gson.fromJson(jsonString,
 							ClientRequest.class);
-
 					if (request.requestType.equals(REQUEST_LIST_ALL)) {
 						processRequestList(request);
-						
 					} else if (request.requestType.equals(OP_REQUEST_CALL)) {
 						processCallRequest(request);
 					} else if (request.requestType.equals(OP_REQUEST_DECLINE)) {
@@ -117,33 +108,37 @@ public class Client extends Thread {
 						processDropSuccessful(request);
 					} else if (request.requestType.equals(OP_REQUEST_CONNECTED)) {
 						processConnected(request);
-					} else if (request.requestType.equals(OP_REQUEST_SENDMESSAGE)) {
+					} else if (request.requestType
+							.equals(OP_REQUEST_SENDMESSAGE)) {
 						processSendMessage(request);
 					} else if (request.requestType.equals(OP_REQUEST_EXIT)) {
+						this.socket.close();
 						server.logout(this);
+					} else if (request.requestType
+							.equals(OP_REQUEST_SETREALLOCALIP)) {
+						processSetRealLocalIp(request);
 					}
 
 				}
 			} catch (JsonSyntaxException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
 
 	}
 
+	private void processSetRealLocalIp(ClientRequest request) {
+		this.realLocalIP = request.getRequestRealIp();
+
+	}
+
 	private void processRequestList(ClientRequest request) {
 		ServerResponse response = new ServerResponse();
 		response.responseType = RESPONSE_LIST_ALL;
-		List<String> mockClients = new ArrayList<String>();
-		for(Client client : server.getClientList(this)){
-			mockClients.add(client.getSocket().getInetAddress().toString());
-		}
-		response.listOfClients = mockClients;
-		sentResponseToClient(response);
+		response.listOfClients = server.getClientList(this);
+		sendResponseToClient(response);
 	}
 
 	private void processSendMessage(ClientRequest request) {
@@ -155,14 +150,14 @@ public class Client extends Thread {
 		}
 		ServerResponse response = new ServerResponse();
 		response.setResponseType(OP_REACH_SENDMESSAGE);
-		response.setRequestTarget(this.getSocket().getInetAddress().toString());
+		response.setRequestTarget(getRealLocalIP());
 		response.setReachMessage(messageContent);
-		callee.sentResponseToClient(response);
+		callee.sendResponseToClient(response);
 	}
 
 	private void processConnected(ClientRequest request) {
 		this.status = CALLEE_STATUS_BUSY;
-		
+
 		String calleeIp = request.getRequestTarget();
 		Client callee = server.getClientByIp(calleeIp);
 		if (callee == null) {
@@ -186,10 +181,10 @@ public class Client extends Thread {
 			// send back failure
 			return;
 		}
-		
+		callee.setStatus(CALLEE_STATUS_FREE);
 		response.setResponseType(OP_RESPONSE_DROP);
-		response.setRequestTarget(this.getSocket().getInetAddress().toString());
-		callee.sentResponseToClient(response);
+		response.setRequestTarget(getRealLocalIP());
+		callee.sendResponseToClient(response);
 
 	}
 
@@ -203,13 +198,19 @@ public class Client extends Thread {
 			// tell callee the caller not exist error.
 			response.setResponseType(OP_RESPONSE_ACCEPT_FAILURE);
 			response.setRequestTarget(callerIp);
-			sentResponseToClient(response);
+			sendResponseToClient(response);
 			return;
 		}
-		this.status = CALLEE_STATUS_READY;
-		response.setRequestTarget(this.socket.getInetAddress().toString());
+		this.status = CALLEE_STATUS_BUSY;
+		response.setRequestTarget(getRealLocalIP());
 		response.setCalleeStatus(CALLEE_STATUS_READY);
-		caller.sentResponseToClient(response);
+		caller.sendResponseToClient(response);
+		System.out.format("caller ip: %s\n", caller.getRealLocalIP());
+		response.setRequestTarget(caller.getRealLocalIP());
+		response.setCalleeStatus(CALLEE_STATUS_READY);
+		sendResponseToClient(response);
+		caller.setStatus(CALLEE_STATUS_BUSY);
+		System.out.format("callee ip: %s\n", this.getRealLocalIP());
 	}
 
 	private void processDecline(ClientRequest request) {
@@ -220,42 +221,39 @@ public class Client extends Thread {
 		Client caller = server.getClientByIp(callerIp);
 		if (caller == null) {
 			return;
-		}//
+		}
 		caller.setStatus(CALLEE_STATUS_FREE);
 		response.setCalleeStatus(CALLEE_STATUS_DECLINE);
-		response.setRequestTarget(this.getSocket().getInetAddress().toString());
-		caller.sentResponseToClient(response);
+		response.setRequestTarget(getRealLocalIP());
+		caller.sendResponseToClient(response);
 	}
 
 	private void processCallRequest(ClientRequest request) {
 		ServerResponse response = new ServerResponse();
 		response.setResponseType(OP_RESPONSE_CALL);
 		this.status = CALLER_STATUS_CALLING;
-		// find the targetClient by target IP
+
 		String targetIp = request.getRequestTarget();
 		Client targetClient = server.getClientByIp(targetIp);
 		if (targetClient == null) {
 			response.setCalleeStatus(CALLEE_STATUS_NOT_EXIST);
-			sentResponseToClient(response);
+			sendResponseToClient(response);
 			return;
 		} else if (targetClient.getStatus() != CALLEE_STATUS_FREE) {
 			response.setCalleeStatus(CALLEE_STATUS_BUSY);
-			sentResponseToClient(response);
+			sendResponseToClient(response);
 			return;
-		} else {// free
+		} else {
 			response.setResponseType(OP_REACH_CALLEE);
-			response.setRequestTarget(this.getSocket().getInetAddress()
-					.toString());
-			targetClient.sentResponseToClient(response);
+			response.setRequestTarget(getRealLocalIP());
+			targetClient.sendResponseToClient(response);
 			return;
 		}
-
 	}
 
-	private void sentResponseToClient(ServerResponse response) {
+	private void sendResponseToClient(ServerResponse response) {
 		Gson gson = new Gson();
-		System.out.format("Send server response to client: %s\n",
-				gson.toJson(response));
+		System.out.format("Response JSON: %s\n", gson.toJson(response));
 		outgoing.println(gson.toJson(response));
 		outgoing.flush();
 
@@ -281,11 +279,7 @@ public class Client extends Thread {
 		this.status = status;
 	}
 
-	public long getLastQueryTime() {
-		return lastQueryTime;
-	}
-
-	public void updateLastQueryTime() {
-		lastQueryTime = System.currentTimeMillis();
+	public String getRealLocalIP() {
+		return realLocalIP;
 	}
 }

@@ -1,81 +1,89 @@
 package edu.purdue.cs.voip.server;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 
 public class VOIPServer {
-  ServerSocket serverSocket;
-  List<Client> listClient = new ArrayList<Client>();
-  final static int defaultPort = 8888;
-  final static int MAX_INTERVAL = 10000;
-  
-  public void start(int port) {
-    try {
-      serverSocket = new ServerSocket(port);
-      System.out.format("Listening on Ip: %s\n Listening on port: %d\n",serverSocket.getInetAddress().toString(), serverSocket.getLocalPort());
-    } catch (IOException ioeport) {
-      System.out.format("Port %d already in use\n", port);
-    }
-    if (serverSocket == null) {
-      try {
-        serverSocket = new ServerSocket(0);
-        System.out.format("Listening on Ip: %s\n Listening on port: %d.\n", serverSocket.getInetAddress().toString(), serverSocket.getLocalPort());
-      } catch (IOException ioe) {
-        System.out.format("No available ports\n Exiting...\n");
-        System.exit(-1);
-      }
-    }
+	ServerSocket serverSocket;
+	List<Client> listClient = new ArrayList<Client>();
+	final static int defaultPort = 8888;
 
-    while (true) {
-      try {
-        Socket slaveSocket = serverSocket.accept();
-        Client newClient = new Client(this, slaveSocket);
-        newClient.start();
-        listClient.add(newClient);
-      } catch (IOException e) {
-        System.out.format("Failed to accept client connection.\n");
-      }
-      //check status every loop
-      checkStatus();
-    }
-  }
-
-  public void checkStatus(){
-	  for(Client client: listClient )
-		{
-			if (System.currentTimeMillis()-client.getLastQueryTime() < MAX_INTERVAL)
-			{
-				listClient.remove(client);
-			}
-			
+	public void start(int port) {
+		try {
+			serverSocket = new ServerSocket(port);
+			System.out.format("Listening on IP: %s\nListening on port: %d\n",
+					InetAddress.getLocalHost().getHostAddress(),
+					serverSocket.getLocalPort());
+		} catch (IOException ioeport) {
+			System.out.format("Port %d already in use\n", port);
 		}
-  }
-  public synchronized void logout(Client c) {
-    listClient.remove(c);
-  }
 
-  public List<Client> getClientList(Client c) {
-    List<Client> listClient = this.listClient;
-    listClient.remove(c);
-    c.updateLastQueryTime();
-    return listClient;
-  }
-	public  Client getClientByIp(String ip){
-		for (Client client : listClient){
-			if(client.getSocket().getInetAddress().toString().equals(ip))
+		if (serverSocket == null) {
+			try {
+				serverSocket = new ServerSocket(0);
+				System.out.format(
+						"Listening on Ip: %s\n Listening on port: %d.\n",
+						InetAddress.getLocalHost().getHostAddress(),
+						serverSocket.getLocalPort());
+			} catch (IOException ioe) {
+				System.out.format("No available ports\n Exiting...\n");
+				System.exit(-1);
+			}
+		}
+
+		while (true) {
+			try {
+				Socket slaveSocket = serverSocket.accept();
+				Client newClient = new Client(this, slaveSocket);
+				newClient.start();
+				listClient.add(newClient);
+
+				System.out.println("Incoming connection from: "
+						+ newClient.getSocket().getInetAddress()
+								.getHostAddress());
+			} catch (IOException e) {
+				System.out.format("Failed to accept client connection.\n");
+			}
+			checkClient();
+		}
+	}
+
+	public void checkClient() {
+		for (Client client : listClient) {
+			if (!client.getSocket().isConnected()) {
+				logout(client);
+			}
+		}
+	}
+
+	public synchronized void logout(Client c) {
+		listClient.remove(c);
+	}
+
+	public List<String> getClientList(Client c) {
+		List<String> listClientIP = new ArrayList<String>();
+		for (Client client : listClient) {
+			if (client.getRealLocalIP().equals(c.getRealLocalIP()))
+				continue;
+			listClientIP.add(client.getRealLocalIP());
+		}
+		return listClientIP;
+	}
+
+	public Client getClientByIp(String ip) {
+		for (Client client : listClient) {
+			if (client.getRealLocalIP().equals(ip))
 				return client;
 		}
 		return null;
 	}
-  public void call(Client caller, Client callee) {
 
-  }
-
-  public static void main(String args[]) {
-    VOIPServer voipServer = new VOIPServer();
-    voipServer.start(defaultPort);
-  }
+	public static void main(String args[]) {
+		VOIPServer voipServer = new VOIPServer();
+		voipServer.start(defaultPort);
+	}
 }
