@@ -11,8 +11,9 @@ public class VOIPServer {
 	ServerSocket serverSocket;
 	List<Client> listClient = new ArrayList<Client>();
 	final static int defaultPort = 8888;
-
+	long currentTime;
 	public void start(int port) {
+		currentTime = System.currentTimeMillis();
 		try {
 			serverSocket = new ServerSocket(port);
 			System.out.format("Listening on IP: %s\nListening on port: %d\n",
@@ -45,21 +46,35 @@ public class VOIPServer {
 				System.out.println("Incoming connection from: "
 						+ newClient.getSocket().getInetAddress()
 								.getHostAddress());
+				
+				checkClient();
 			} catch (IOException e) {
 				System.out.format("Failed to accept client connection.\n");
 			}
-			checkClient();
+			
 		}
 	}
 
 	public void checkClient() {
+		if(System.currentTimeMillis()-  currentTime >= 5000){
+			System.out.println("Current ClientList:" + getClientIpList().toString());
+			currentTime=System.currentTimeMillis();
+		}
+			
 		for (Client client : listClient) {
-			if (!client.getSocket().isConnected()) {
+			if (!client.getSocket().isBound()) {
 				logout(client);
 			}
 		}
 	}
 
+	public List<String> getClientIpList(){
+		List<String> listClientIP = new ArrayList<String>();
+		for (Client client : listClient) {
+			listClientIP.add(client.getRealLocalIP());
+		}
+		return listClientIP;
+	}
 	public synchronized void logout(Client c) {
 		listClient.remove(c);
 	}

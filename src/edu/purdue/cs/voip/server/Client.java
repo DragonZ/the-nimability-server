@@ -87,6 +87,9 @@ public class Client extends Thread {
 	public void run() {
 		while (true) {
 			String jsonString;
+			if (socket.isClosed()) {
+				break;
+			}
 			try {
 				while ((jsonString = incoming.readLine()) != null) {
 					System.out.format("Request JSON: %s\n", jsonString);
@@ -112,7 +115,7 @@ public class Client extends Thread {
 							.equals(OP_REQUEST_SENDMESSAGE)) {
 						processSendMessage(request);
 					} else if (request.requestType.equals(OP_REQUEST_EXIT)) {
-						this.socket.close();
+						//this.socket.close();
 						server.logout(this);
 					} else if (request.requestType
 							.equals(OP_REQUEST_SETREALLOCALIP)) {
